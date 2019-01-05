@@ -25,12 +25,12 @@ class KMeans:
 
     def fit(self):
         self._initialize_cluster_centers()
-        self._compute_assignment_matrix()
+        cluster_assignment_matrix = self._compute_assignment_matrix()
         self._compute_cluster_data_means()
         new_cluster_assignment_matrix = self._compute_assignment_matrix()
 
-        while np.array_equal(self.cluster_assignment_matrix, new_cluster_assignment_matrix) is False:
-            self.cluster_assignment_matrix = new_cluster_assignment_matrix
+        while np.array_equal(cluster_assignment_matrix, new_cluster_assignment_matrix) is False:
+            cluster_assignment_matrix = new_cluster_assignment_matrix
             self._compute_cluster_data_means()
             new_cluster_assignment_matrix = self._compute_assignment_matrix()
             print(F'cluster_centers: \n {self.cluster_data_means}')
