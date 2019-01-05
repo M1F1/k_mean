@@ -25,9 +25,7 @@ def main():
     np.savetxt("mickey_mouse.csv", dataset, delimiter=",")
     plt.scatter(dataset[:, 0], dataset[:, 1])
     plt.show()
-    # fig, ax = plt.subplots(1, 1)
-    # plt.axis('equal')
-    # ax.scatter(x=dataset[:,0], y=dataset[:,1])
+
 
 if __name__ == '__main__':
     main()
