@@ -10,14 +10,13 @@ def k_means(cluster_number: int, data: np.ndarray) -> np.ndarray:
     while np.array_equal(cluster_assignment_matrix, new_cluster_assignment_matrix) is False:
         cluster_assignment_matrix = new_cluster_assignment_matrix
         cluster_data_means = compute_cluster_data_means(data, cluster_assignment_matrix)
-        print(cluster_data_means)
+        print(F'cluster_centers: \n {cluster_data_means}')
         new_cluster_assignment_matrix = compute_assignment_matrix(data, cluster_data_means)
-        print('elo')
 
     assigned_clusters = np.nonzero(new_cluster_assignment_matrix)[1]
     clustered_data = np.zeros((data.shape[0], data.shape[1] + 1))
-    clustered_data[:, 0:2] = data
-    clustered_data[:, 2] = assigned_clusters
+    clustered_data[:, 0:data.shape[1]] = data
+    clustered_data[:, data.shape[1]] = assigned_clusters
     print('algorithm_end')
     return clustered_data
 
@@ -46,23 +45,17 @@ def compute_cluster_data_means(data: np.ndarray, cluster_assignment_matrix: np.n
     cluster_number = cluster_assignment_matrix.shape[1]
     cluster_data_means = np.zeros((cluster_number, data.shape[1]))
     for i in range(cluster_number):
-        res = compute_mean(data, cluster_assignment_matrix[:, i])
-        cluster_data_means[i] = res
+        cluster_data_means[i] = compute_mean(data, cluster_assignment_matrix[:, i])
     return cluster_data_means
 
 
 def compute_mean(data: np.ndarray, n_cluster_assignment_vector: np.ndarray) -> float:
     idx = np.nonzero(n_cluster_assignment_vector)[0]
-    sample = data[idx]
-    cluster_size = idx.shape[0]
-    sum_res = np.sum(data[idx], axis=0)
-    res = sum_res / idx.shape[0]
-    return res
-    # return np.sum(data[idx], axis=1) / idx.shape[0]
+    return np.sum(data[idx], axis=0) / idx.shape[0]
 
 
 def main():
-    cluster_numbers = 3
+    cluster_numbers = 10
     data = np.genfromtxt('mickey_mouse.csv', delimiter=',')
     clustered_data = k_means(cluster_numbers, data)
     np.savetxt("clustered_data.csv", clustered_data, delimiter=",")

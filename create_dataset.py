@@ -10,15 +10,15 @@ def main():
     dataset = []
     for _ in range(600):
         p1 = gauss1.rvs()
-        p1 = np.append(p1, 1)
+        # p1 = np.append(p1, 1)
         dataset.append(p1)
     for _ in range(200):
         p2 = gauss2.rvs()
-        p2 = np.append(p2, 2)
+        # p2 = np.append(p2, 2)
         dataset.append(p2)
     for _ in range(200):
         p3 = gauss3.rvs()
-        p3 = np.append(p3, 3)
+        # p3 = np.append(p3, 3)
         dataset.append(p3)
 
     dataset = np.array(dataset)
