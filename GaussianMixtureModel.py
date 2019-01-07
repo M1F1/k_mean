@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+import scipy.stats as scipy_stats
 from k_means import KMeans
 
 # set font size of labels on matplotlib plots
@@ -24,8 +25,8 @@ class GaussianMixtureModel:
         self.cluster_number = cluster_number
         self.data = data
 
-        self.clusters_data_means = np.zeros((cluster_number, data.shape[1]))
-        self.clusters_data_means = k_means.cluster_data_means
+        self.clusters_means = np.zeros((cluster_number, data.shape[1]))
+        self.clusters_means = k_means.cluster_data_means
 
         self.clusters_priors = np.zeros((1, cluster_number))
         self.clusters_priors = np.sum(k_means.cluster_assignment_matrix, axis=0) / data.shape[0]
@@ -40,23 +41,36 @@ class GaussianMixtureModel:
         self.cluster_probability_matrix = np.zeros((self.data.shape[0], cluster_number))
 
     def fit(self):
-        self._compute_clusters_covariances()
-        self._compute_clusters_priors()
-        self._compute_assignment_matrix()
-        new_clusters_means = self._compute_clusters_means()
-        new_clusters_covariances = self._compute_clusters_covariances()
-        new_clusters_priors = self._compute_clusters_priors()
+        prob_matrix = self._compute_probability_matrix(input_data=self.data,
+                                                       clusters_means=self.clusters_means,
+                                                       clusters_priors=self.clusters_priors,
+                                                       clusters_covariances=self.clusters_covariances,
+                                                       cluster_probability_matrix=self.cluster_probability_matrix)
+        means = self._compute_clusters_means(prob_matrix, self.data)
+        variances = self._compute_clusters_covariances(cluster_probability_matrix=prob_matrix,
+                                                       cluster_means=means,
+                                                       input_data=self.data)
+        priors = self._compute_clusters_priors(cluster_probability_matrix=prob_matrix)
 
         # stop_condition - check if new covariance matrix and mi are different than old
         # define some epsilon
         # subtract two covariances matrices and sum all values check if it |v| - e > 0
-        while np.array_equal(self.cluster_assignment_matrix, new_cluster_assignment_matrix) is False:
-            self.cluster_assignment_matrix = new_cluster_assignment_matrix
-            self._compute_clusters_means()
-            print(F'cluster_centers: \n {self.clusters_data_means}')
-            new_cluster_assignment_matrix = self._compute_assignment_matrix()
 
-        assigned_clusters = np.nonzero(new_cluster_assignment_matrix)[1]
+        # self._initialize_cluster_centers()
+        # cluster_assignment_matrix = self._compute_assignment_matrix()
+        # self._compute_cluster_data_means()
+        # new_cluster_assignment_matrix = self._compute_assignment_matrix()
+        #
+        # while np.array_equal(cluster_assignment_matrix, new_cluster_assignment_matrix) is False:
+        #     cluster_assignment_matrix = new_cluster_assignment_matrix
+        #     self._compute_cluster_data_means()
+        #     new_cluster_assignment_matrix = self._compute_assignment_matrix()
+        #     print(F'cluster_centers: \n {self.cluster_data_means}')
+
+        max_elements_i = np.expand_dims(np.argmax(self.cluster_probability_matrix, axis=1), axis=1)
+        cluster_assignment_matrix = np.zeros((self.data.shape[0], self.cluster_number))
+        np.put_along_axis(cluster_assignment_matrix, max_elements_i, 1, axis=1)
+        assigned_clusters = np.nonzero(cluster_assignment_matrix)[1]
         self.clustered_data[:, 0:self.data.shape[1]] = self.data
         self.clustered_data[:, self.data.shape[1]] = assigned_clusters
         print('model fitted')
@@ -69,15 +83,6 @@ class GaussianMixtureModel:
                    legend=False)
         plt.show()
 
-
-    def _compute_probability_matrix(self):
-        probability_matrix = np.copy(self.cluster_assignment_matrix)
-        for i in range(self.cluster_number):
-            probability_matrix[:, i] = self._compute_probability_matrix(self.clusters_data_means[i])
-        return self.cluster_assignment_matrix
-
-
-
     def _compute_clusters_sizes(self, cluster_probability_matrix):
         return np.sum(cluster_probability_matrix, axis=0)
 
@@ -86,8 +91,21 @@ class GaussianMixtureModel:
         return (np.dot(input_data.T, cluster_probability_matrix)).T \
                / self._compute_clusters_sizes(cluster_probability_matrix)[:, None]
 
+    def _compute_clusters_covariances(self,
+                                      cluster_probability_matrix,
+                                      cluster_means,
+                                      input_data):
+        clusters_covariances = np.zeros((self.cluster_number, input_data.shape[1], input_data.shape[1]))
+        for k in range(self.cluster_number):
+            clusters_covariances[k] = self._compute_cluster_covariance(cluster_probability_matrix[k],
+                                                                       cluster_means[k],
+                                                                       input_data)
+        return clusters_covariances
 
-    def _compute_covariance(self, k_cluster_probability_vector, k_cluster_mean_vector, input_data):
+    def _compute_cluster_covariance(self,
+                                    k_cluster_probability_vector,
+                                    k_cluster_mean_vector,
+                                    input_data):
         data_len = input_data.shape[0]
         cov_per_sample = np.zeros((data_len, input_data.shape[1], input_data.shape[1]))
         data = input_data - k_cluster_mean_vector
@@ -98,14 +116,34 @@ class GaussianMixtureModel:
         assert k_cluster_probability_vector.shape == (data_len,)
         mul_cov_per_sample = cov_per_sample * k_cluster_probability_vector[:, None, None]
         sum_mul_cov_per_sample = np.sum(mul_cov_per_sample, axis=0)
+        clusters_covariances = sum_mul_cov_per_sample / self._compute_clusters_sizes(k_cluster_probability_vector)
+        return clusters_covariances
 
-        return sum_mul_cov_per_sample / self._compute_clusters_sizes(k_cluster_probability_vector)
-
-
-    def _compute_clusters_priors(self, cluster_probability_matrix, cluster_number):
+    def _compute_clusters_priors(self, cluster_probability_matrix):
         clusters_sizes = self._compute_clusters_sizes(cluster_probability_matrix)
-        assert clusters_sizes.shape == (cluster_number,)
-        return clusters_sizes / np.sum(clusters_sizes, axis=0)
+        assert clusters_sizes.shape == (self.cluster_number, )
+        clusters_priors = clusters_sizes / np.sum(clusters_sizes, axis=0)
+        return clusters_priors
+
+    def _compute_probability_matrix(self,
+                                    input_data,
+                                    clusters_means,
+                                    clusters_covariances,
+                                    clusters_priors,
+                                    cluster_probability_matrix):
+
+        def compute_gaussian_2d(input_data, cluster_mean, cluster_sigma):
+            gaussian_pdf_values = np.zeros((input_data.shape[0], ))
+            gaussian_pdf_values = scipy_stats.multivariate_normal.pdf(input_data, cluster_mean, cluster_sigma)
+            return gaussian_pdf_values
+
+        for k in range(self.cluster_number):
+            gaussian_values = compute_gaussian_2d(input_data, clusters_means[k], clusters_covariances[k])
+            cluster_probability_matrix[:, k] = clusters_priors[k] * gaussian_values
+        normalize_values = np.zeros((input_data.shape[0], ))
+        normalize_values = np.sum(cluster_probability_matrix, axis=1)
+        cluster_probability_matrix = cluster_probability_matrix / normalize_values[:, None]
+        return cluster_probability_matrix
 
 
 
@@ -116,36 +154,6 @@ class GaussianMixtureModel:
     #                         (self.data - self.clusters_data_means[k]).T)
     #     return GaussianMixtureModel._compute_mean_2(cluster_probability_matrix, input_data)
 
-
-    def _compute_mean(self, k, input_data) -> np.ndarray:
-        return np.sum((input_data.T * self.cluster_probability_matrix[:, k]).T, axis=0) \
-               / self._cluster_size(k)
-    def _compute_clusters_covariances(self):
-        for k in range(self.cluster_number):
-            self.clusters_covariances[k] = self._compute_covariance(k)
-        return self.clusters_covariances
-
-    def _compute_covariance(self, k) -> np.ndarray:
-        k_cluster_assignment_vector = self.cluster_probability_matrix[:, k]
-        input_data = np.dot(self.data - self.clusters_data_means[k],
-                            (self.data - self.clusters_data_means[k]).T)
-        return self._compute_mean(k_cluster_assignment_vector, input_data)
-
-    def _compute_clusters_priors(self):
-
-        for k in range(self.cluster_number):
-            self.clusters_priors[k] = self._compute_prior(k)
-        return self.clusters_priors
-
-    def _compute_prior(self, k) -> np.ndarray:
-        counter = self._cluster_size(k)
-        denominator = self.data.shape[0]
-        return counter / denominator
-
-    def _cluster_size(self, k_cluster):
-        return np.sum(self.cluster_assignment_matrix[:, k_cluster])
-
-
 def main():
     data = np.genfromtxt('mickey_mouse.csv', delimiter=',')
     cluster_number = 3
@@ -153,7 +161,6 @@ def main():
     print(gmm.cluster_number)
     print(gmm.clusters_data_means)
     print(gmm.clusters_priors)
-    print(gmm.)
 
 if __name__ == '__main__':
     main()
