@@ -75,7 +75,7 @@ class KMeans:
 
 def main():
     k_means = KMeans(data=np.genfromtxt('mickey_mouse.csv', delimiter=','),
-                     cluster_number=4
+                     cluster_number=3
                      )
     k_means.fit()
     k_means.visualize()

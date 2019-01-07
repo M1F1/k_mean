@@ -1,12 +1,12 @@
 import unittest
-import k_means
+import KMeans
 import numpy as np
 
 
 class TestKmeans(unittest.TestCase):
 
     def test_euclidean_distance(self):
-        result = k_means.euclidean_distance(np.array([[2, 2, 2], [1, 1, 1]]), np.array([1, 1, 1]))
+        result = KMeans.euclidean_distance(np.array([[2, 2, 2], [1, 1, 1]]), np.array([1, 1, 1]))
         self.assertEqual(np.round(result[0], 8), 1.73205081)
         self.assertEqual(np.round(result[1], 8), 0.)
 

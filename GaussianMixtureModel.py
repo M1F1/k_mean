@@ -3,7 +3,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import scipy.stats as scipy_stats
-from k_means import KMeans
+from KMeans import KMeans
 
 # set font size of labels on matplotlib plots
 plt.rc('font', size=16)
