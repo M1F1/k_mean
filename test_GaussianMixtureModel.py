@@ -81,6 +81,8 @@ class TestGaussianMixtureModel(unittest.TestCase):
         # print(res4)
         gmm.fit()
         gmm.visualize()
+        gmm.plot_results()
+
 
 
 if __name__ == '__main__':

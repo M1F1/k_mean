@@ -4,6 +4,8 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import scipy.stats as scipy_stats
 from KMeans import KMeans
+import itertools
+import matplotlib as mpl
 
 # set font size of labels on matplotlib plots
 plt.rc('font', size=16)
@@ -15,6 +17,10 @@ sns.set_style('white')
 customPalette = ['#630C3A', '#39C8C6', '#D3500C', '#FFB139']
 sns.set_palette(customPalette)
 sns.palplot(customPalette)
+color_iter = itertools.cycle(['navy', 'c', 'cornflowerblue', 'gold',
+                              'darkorange'])
+
+from scipy import linalg
 
 
 class GaussianMixtureModel:
@@ -85,7 +91,7 @@ class GaussianMixtureModel:
         self.clusters_priors = priors
         self.clusters_means = means
         self.clusters_covariances = variances
-        print('prob_matrix: \n',self.cluster_probability_matrix)
+        print('prob_matrix: \n', self.cluster_probability_matrix)
 
         max_elements_i = np.expand_dims(np.argmax(self.cluster_probability_matrix, axis=1), axis=1)
         cluster_assignment_matrix = np.zeros((self.data.shape[0], self.cluster_number))
@@ -101,6 +107,38 @@ class GaussianMixtureModel:
         sns.lmplot(data=df, x='x', y='y',
                    hue='clusters', fit_reg=False,
                    legend=False)
+        plt.show()
+
+    def plot_results(self, index=0, title="gmm components plot"):
+        means = self.clusters_means
+        X = self.data
+        Y_ = self.clustered_data[:, 2]
+        covariances = self.clusters_covariances
+
+        splot = plt.subplot(1, 1, 1 + index)
+        for i, (mean, covar, color) in enumerate(zip(
+                means, covariances, color_iter)):
+            v, w = linalg.eigh(covar)
+            v = 2. * np.sqrt(2.) * np.sqrt(v)
+            u = w[0] / linalg.norm(w[0])
+            # as the DP will not use every component it has access to
+            # un    less it needs it, we shouldn't plot the redundant
+            # components.
+            if not np.any(Y_ == i):
+                continue
+            plt.scatter(X[Y_ == i, 0], X[Y_ == i, 1], .8, color=color)
+
+            # Plot an ellipse to show the Gaussian component
+            angle = np.arctan(u[1] / u[0])
+            angle = 180. * angle / np.pi  # convert to degrees
+            ell = mpl.patches.Ellipse(mean, v[0], v[1], 180. + angle, color=color)
+            ell.set_clip_box(splot.bbox)
+            ell.set_alpha(0.5)
+            splot.add_artist(ell)
+
+        # plt.xticks(())
+        # plt.yticks(())
+        # plt.title(title)
         plt.show()
     #checked
     def _compute_clusters_sizes(self, cluster_probability_matrix):
